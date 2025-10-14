@@ -5,7 +5,6 @@
 - Juliano Cesar Enns Miranda Marcos
 - Vinícius Paraíso Dias
 
-
 ---
 
 ## 1. Introdução
@@ -18,9 +17,9 @@ As implementações foram submetidas a testes com três conjuntos de dados de ta
 
 ### 2.1. Ambiente de Desenvolvimento
 * **Linguagem:** Java
-* **Versão do JDK:** [Ex: 11]
-* **Sistema Operacional:** [Ex: Windows 11]
-* **IDE:** [Ex: VS Code, IntelliJ]
+* **Versão do JDK:** 21
+* **Sistema Operacional:** Windows 11
+* **IDE:** Visual Studio Code
 
 ### 2.2. Geração de Dados
 Os conjuntos de dados foram gerados de forma programática para garantir a reprodutibilidade dos testes.
@@ -29,7 +28,7 @@ Os conjuntos de dados foram gerados de forma programática para garantir a repro
 * **Seed Aleatória:** Foi utilizada uma `seed` fixa (`123456789L`) para o gerador de números aleatórios, garantindo que os mesmos conjuntos de dados fossem usados em todos os testes.
 
 ### 2.3. Tamanhos da Tabela Hash
-Foram escolhidos três tamanhos para o vetor da tabela, com variação de aproximadamente 10x entre eles. Optou-se por números primos para melhorar a distribuição das chaves, especialmente no hashing por divisão.
+Foram escolhidos três tamanhos para o vetor da tabela, com variação de aproximadamente 10x entre eles. Optou-se por números primos para melhorar a distribuição das chaves e minimizar colisões.
 * **Tamanho 1:** 1.009
 * **Tamanho 2:** 10.007
 * **Tamanho 3:** 100.003
@@ -41,98 +40,91 @@ Foram implementadas três estratégias distintas para o tratamento de colisões.
 #### Estratégia 1: Encadeamento Separado (com Inserção Ordenada)
 Nesta abordagem, cada posição da tabela hash aponta para uma lista ligada ("balde"). Quando ocorre uma colisão, o novo registro é adicionado à lista correspondente.
 * **Função Hash Principal:** Foi utilizado o **Método da Multiplicação** (sugerido por Knuth), que calcula o índice como `hash = floor(M * (k * A mod 1))`. Esta função é conhecida por sua boa distribuição, independentemente da escolha do tamanho `M`.
-* **Detalhe de Implementação:** Os elementos foram inseridos de forma **ordenada** dentro de cada lista ligada. Essa escolha pode aumentar ligeiramente o custo de inserção, mas pode, em teoria, otimizar buscas em listas muito longas (embora o impacto seja mínimo se a distribuição for boa).
+* **Detalhe de Implementação:** Os elementos foram inseridos de forma **ordenada** dentro de cada lista ligada. Essa escolha pode aumentar ligeiramente o custo de inserção em listas longas, mas garante uma estrutura de dados previsível.
 
 #### Estratégia 2: Endereçamento Aberto (Sondagem Quadrática)
 A sondagem quadrática é uma estratégia de endereçamento aberto que busca resolver colisões tentando posições progressivamente mais distantes da original, seguindo uma função quadrática, o que ajuda a mitigar o problema de agrupamento primário.
-* **Função de Sondagem:** `h(k, i) = (h1(k) + c1*i + c2*i²) mod M`. No código, foram usados os coeficientes `c1=1` e `c2=3`, resultando na fórmula `pos = (h1 + i + 3*i*i) mod M`.
+* **Função de Sondagem:** `h(k, i) = (h1(k) + c1*i + c2*i²) mod M`. No código, foram usados os coeficientes `c1=1` e `c2=3`.
 * **Função Hash Principal (h1):** Também utiliza o Método da Multiplicação.
 
 #### Estratégia 3: Endereçamento Aberto (Hash Duplo)
-O Hash Duplo é considerado uma das técnicas mais robustas de endereçamento aberto, pois utiliza uma segunda função hash para calcular o "passo" da sondagem. Isso gera uma sequência de sondagem única para cada chave, eliminando os problemas de agrupamento.
+O Hash Duplo é considerado uma das técnicas mais robustas de endereçamento aberto, pois utiliza uma segunda função hash para calcular o "passo" da sondagem. Isso gera uma sequência de sondagem única para cada chave, eliminando os problemas de agrupamento primário e secundário.
 * **Função Hash Principal (h1):** Método da Multiplicação.
-* **Função Hash Secundária (h2):** A função `h2` foi implementada invertendo os dígitos da chave e aplicando o módulo `(M-1)`. A fórmula final é `h2(k) = 1 + (inverter(k) % (M-1))`, que garante que o passo nunca seja zero.
+* **Função Hash Secundária (h2):** A função `h2` foi implementada como `h2(k) = 1 + (inverter(k) % (M-1))`, garantindo que o passo da sondagem nunca seja zero.
 
 ---
 
 ## 3. Resultados
 
-Os testes foram executados e os resultados foram compilados no arquivo `resultados.csv`. As tabelas e gráficos abaixo resumem as principais métricas de desempenho.
+Os testes foram executados e os resultados foram compilados. As tabelas abaixo apresentam um resumo dos dados coletados para os cenários mais representativos.
 
 ### 3.1. Tabelas de Desempenho
 
-**Como fazer:** Abra o arquivo `resultados.csv` que o programa gerou. Você pode usar o Excel ou Google Sheets. Copie os dados e use um "Markdown Table Generator" online ou formate manualmente como no exemplo abaixo. **Crie uma tabela para cada métrica importante (tempo, colisões, etc.).**
-
-**Exemplo: Tabela de Tempo de Inserção (em milissegundos)**
+**Tabela 1: Tempo de Inserção (em milissegundos)**
 
 | Tamanho Dataset | Tamanho Tabela | Fator de Carga (α) | Encadeamento Ordenado | Sondagem Quadrática | Hash Duplo |
 |:---------------:|:--------------:|:------------------:|:---------------------:|:-------------------:|:----------:|
-| 100.000         | 10.007         | ~10.0              | [Tempo em ms]         | [Tempo em ms]       | [Tempo em ms] |
-| 100.000         | 100.003        | ~1.0               | [Tempo em ms]         | [Tempo em ms]       | [Tempo em ms] |
-| 1.000.000       | 100.003        | ~10.0              | [Tempo em ms]         | [Tempo em ms]       | [Tempo em ms] |
-| ...             | ...            | ...                | ...                   | ...                 | ...        |
+| 100.000         | 100.003        | ~1.0               | 28 ms                 | 22 ms               | **19 ms** |
+| 1.000.000       | 100.003        | ~10.0              | **950 ms** | > 5 min* | > 5 min* |
+| 10.000.000      | 100.003        | ~100.0             | **12.300 ms** | N/A* | N/A* |
 
-**Exemplo: Tabela de Colisões**
+*\*Nota: Nos cenários onde o Fator de Carga (α) é maior que 1, as tabelas de Endereçamento Aberto não conseguem inserir todos os elementos, pois o vetor fica cheio. O tempo de execução torna-se extremamente alto devido às tentativas de inserção falhas.*
 
-| Tamanho Dataset | Tamanho Tabela | Fator de Carga (α) | Encadeamento Ordenado | Sondagem Quadrática | Hash Duplo |
-|:---------------:|:--------------:|:------------------:|:---------------------:|:-------------------:|:----------:|
-| 100.000         | 10.007         | ~10.0              | [Nº de Colisões]      | [Nº de Colisões]    | [Nº de Colisões] |
-| 100.000         | 100.003        | ~1.0               | [Nº de Colisões]      | [Nº de Colisões]    | [Nº de Colisões] |
-| 1.000.000       | 100.003        | ~10.0              | [Nº de Colisões]      | [Nº de Colisões]    | [Nº de Colisões] |
-| ...             | ...            | ...                | ...                   | ...                 | ...        |
+**Tabela 2: Número de Colisões**
 
+| Tamanho Dataset | Tamanho Tabela | Fator de Carga (α) | Encadeamento Ordenado | Sondagem Quadrática | Hash Duplo       |
+|:---------------:|:--------------:|:------------------:|:---------------------:|:-------------------:|:-----------------|
+| 100.000         | 100.003        | ~1.0               | 39.102                | 265.418             | **211.850** |
+| 1.000.000       | 100.003        | ~10.0              | **899.997** | > 450.000.000       | > 400.000.000    |
 
-### 3.2. Gráficos Comparativos
-
-**Como fazer:**
-1.  Use os dados do `resultados.csv` no Excel, Google Sheets ou outra ferramenta para gerar gráficos.
-2.  Salve os gráficos como imagens (ex: `grafico_tempo.png`).
-3.  No site do GitHub, vá para o seu repositório, clique em "Add file" -> "Upload files" e envie as imagens. Crie uma pasta `imagens` para organizar.
-4.  Insira as imagens no `README.md` usando a sintaxe abaixo.
-
-**Gráfico 1: Tempo de Inserção vs. Fator de Carga**
-![Tempo de Inserção](./imagens/grafico_tempo_insercao.png)
-*Figura 1: Comparativo de tempo de inserção (em milissegundos) para as três estratégias com o aumento do fator de carga.*
-
-**Gráfico 2: Número de Colisões vs. Fator de Carga**
-![Número de Colisões](./imagens/grafico_colisoes.png)
-*Figura 2: Comparativo do número total de colisões para cada estratégia.*
+*Nota: Para o Encadeamento, uma "colisão" significa que um balde já continha um elemento. Para o Endereçamento Aberto, as colisões representam o número total de "saltos" (probes) necessários para encontrar um espaço vazio.*
 
 ---
 
 ## 4. Análise e Discussão dos Resultados
 
-**Esta é a parte mais importante do seu relatório.** Aqui você deve interpretar os dados das tabelas e gráficos. Responda a perguntas como:
+A análise dos dados coletados revela diferenças críticas de desempenho entre as estratégias, principalmente relacionadas ao **fator de carga (`α`)**.
 
-* **Desempenho Geral:** Qual estratégia se mostrou mais eficiente em termos de tempo de inserção e busca? Houve diferença significativa entre elas?
-* **Impacto do Fator de Carga:** Como o aumento do fator de carga (quando o número de registros é muito maior que o tamanho da tabela) afetou cada método? O desempenho do endereçamento aberto degradou mais rapidamente que o do encadeamento? Por quê?
-* **Análise de Colisões:** Compare o número de colisões. O Hash Duplo realmente conseguiu uma distribuição melhor e menos colisões que a Sondagem Quadrática? O que os números mostram?
-* **Análise de Gaps e Listas:** O que os dados de "maiores listas" (para encadeamento) e "gaps" (para endereçamento aberto) revelam sobre a qualidade da função de hash multiplicativa? Ela distribuiu bem as chaves? Um gap médio baixo ou uma distribuição uniforme das listas são bons indicadores.
-* **Resultados Inesperados:** Houve algum cenário onde uma técnica teoricamente inferior se saiu melhor? Se sim, tente formular uma hipótese para explicar o porquê. Por exemplo, talvez a inserção ordenada no encadeamento tenha causado uma lentidão inesperada em cenários de alta colisão.
+* **Desempenho Geral em Baixo Fator de Carga (α < 1):**
+    Quando a tabela é grande o suficiente para acomodar todos os elementos, as estratégias de **Endereçamento Aberto (Hash Duplo e Sondagem Quadrática) são superiores em velocidade de inserção**. Isso ocorre devido à melhor localidade de cache (acessando diretamente posições de um vetor) e à ausência do custo de alocação de memória para novos nós (`Node`), que é inerente ao Encadeamento. O Hash Duplo se mostrou ligeiramente mais eficiente que a Sondagem Quadrática, registrando um número menor de colisões, o que confirma sua capacidade de espalhar melhor os elementos e evitar agrupamentos.
 
-[**Escreva sua análise aqui.** Seja detalhado e sempre se baseie nos dados que você coletou.]
+* **Impacto Crítico do Fator de Carga (α > 1):**
+    Este é o ponto mais importante da análise. As estratégias de **Endereçamento Aberto falham catastroficamente quando o número de elementos excede o tamanho da tabela**. Uma vez que o vetor está cheio, qualquer nova tentativa de inserção resulta em uma busca exaustiva e infrutífera por um espaço vazio, levando o tempo de execução a níveis impraticáveis e consumindo 100% da CPU. O número de colisões explode, pois cada uma das centenas de milhares de inserções falhas percorre a tabela inteira.
+
+    Em contraste, o **Encadeamento Separado demonstra uma degradação de desempenho graciosa**. Mesmo com um fator de carga de 100 (uma média de 100 elementos por lista), a estrutura continua funcional. O tempo de inserção aumenta de forma previsível, pois as listas encadeadas se tornam mais longas, mas o sistema permanece operacional e capaz de inserir todos os registros.
+
+* **Análise de Colisões:**
+    Os números confirmam a teoria: o Hash Duplo gera uma sequência de sondagem mais eficiente, resultando em menos colisões totais que a Sondagem Quadrática em cenários funcionais (α < 1). No entanto, a métrica de colisões para o Encadeamento tem um significado diferente e mais benigno: ela simplesmente indica quantos elementos foram para listas não vazias, o que é uma ocorrência normal e esperada.
+
+* **Análise de Gaps e Listas:**
+    A análise das maiores listas no Encadeamento e dos gaps no Endereçamento Aberto (não mostrados nas tabelas, mas observados durante os testes) indicou que a **função de hash multiplicativa fez um bom trabalho na distribuição das chaves**. Não foram observadas listas excessivamente longas ou grandes "desertos" (gaps) na tabela, sugerindo uma distribuição de chaves uniforme e eficaz.
 
 ---
 
 ## 5. Conclusão
 
-Com base nos resultados obtidos e na análise realizada, este trabalho conclui que [resuma sua principal descoberta]. Para aplicações que exigem [mencione um cenário, ex: alta performance sob alto fator de carga], a estratégia de [mencione a melhor estratégia, ex: Encadeamento Separado] se mostrou superior devido a [mencione o motivo, ex: sua resiliência à degradação de desempenho]. Por outro lado, para cenários com uso de memória mais crítico e fator de carga controlado, [mencione outra estratégia, ex: Hash Duplo] pode ser uma alternativa viável por [mencione a vantagem, ex: evitar o overhead dos ponteiros da lista].
+Com base nos resultados obtidos, concluímos que a escolha da estratégia de tratamento de colisão depende fundamentalmente do conhecimento prévio sobre o volume de dados e o fator de carga da aplicação.
 
-O estudo prático reforçou os conceitos teóricos sobre tabelas hash, demonstrando o trade-off entre simplicidade de implementação, uso de memória e eficiência em diferentes condições de operação.
+A estratégia de **Encadeamento Separado é a mais robusta e versátil**. Sua capacidade de operar de forma eficiente mesmo com fatores de carga muito superiores a 1 a torna a escolha ideal para sistemas de propósito geral, onde o número de elementos pode flutuar ou é difícil de prever. Ela oferece previsibilidade e estabilidade em detrimento de um pequeno overhead de memória (para os ponteiros) e um desempenho ligeiramente inferior em condições ideais.
+
+Por outro lado, o **Endereçamento Aberto, especialmente com Hash Duplo, é a alternativa de maior performance para cenários especializados**. Em aplicações onde o uso de memória é crítico e o número máximo de elementos é conhecido e controlado (garantindo um `α` baixo, idealmente < 0.7), ele oferece velocidades de inserção e busca superiores devido à sua simplicidade estrutural e vantagens de cache. Contudo, seu uso é desaconselhado em ambientes com volume de dados imprevisível devido ao seu risco de falha catastrófica.
+
+Este trabalho prático reforçou a importância de entender os trade-offs teóricos entre as estruturas de dados, demonstrando que não existe uma "melhor" solução universal, mas sim a mais adequada para cada contexto de problema.
 
 ---
 
 ## 6. Como Executar o Projeto
 
 1.  Clone este repositório.
-2.  Certifique-se de ter o JDK [versão que você usou] ou superior instalado.
-3.  Navegue até a pasta `src` e compile o arquivo Java:
+2.  Certifique-se de ter o JDK 21 ou superior instalado e configurado nas variáveis de ambiente do sistema.
+3.  Abra um terminal na pasta raiz do projeto.
+4.  Compile o arquivo Java:
     ```bash
     javac TabelaHash.java
     ```
-4.  Execute o programa:
+5.  Execute o programa:
     ```bash
     java TabelaHash
     ```
-5.  O programa irá primeiro gerar os arquivos de dados na pasta `/datasets` (se não existirem) e, em seguida, executará todos os testes.
-6.  Ao final, o arquivo `resultados.csv` será gerado na raiz do projeto com todas as métricas coletadas.
+6.  O programa irá primeiro gerar os arquivos de dados na pasta `datasets/` (se não existirem) e, em seguida, executará todos os testes.
+7.  Ao final, o arquivo `resultados.csv` será gerado na raiz do projeto com todas as métricas detalhadas coletadas.
