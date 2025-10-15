@@ -1,7 +1,7 @@
 import java.io.*;
-import java.util.Random;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Random;
 
 public class TabelaHash {
 
@@ -96,7 +96,10 @@ public class TabelaHash {
                 // Balde vazio
                 b.cabeca = novo;
             } else {
-                colisoes++; // Colisão ocorre se o índice já está ocupado por outro balde
+                // CORREÇÃO: Contagem de colisões mais precisa.
+                // Uma colisão ocorre quando o balde não está vazio. 
+                // Colisões adicionais ocorrem para cada nó que precisamos percorrer na lista.
+                colisoes++; 
                 
                 No atual = b.cabeca;
                 No anterior = null;
@@ -104,6 +107,7 @@ public class TabelaHash {
                 // 1. Busca a posição correta para inserção ORDENADA
                 // Percorre enquanto o código for MENOR que o código atual na lista
                 while (atual != null && codigo > atual.registro.paraInteiro()) {
+                    colisoes++; // Colisão adicional por percorrer a lista
                     anterior = atual;
                     atual = atual.proximo;
                 }
@@ -144,11 +148,12 @@ public class TabelaHash {
             // Ordena o array de tamanhos em ordem decrescente
             Arrays.sort(tamanhosListas, Comparator.reverseOrder());
             
+            // CORREÇÃO: Torna a lógica mais segura para tabelas pequenas.
             // Retorna apenas os 3 primeiros (ou menos, se não houver 3)
             return new Integer[]{
-                tamanhosListas[0],
-                (tamanho > 1 ? tamanhosListas[1] : 0),
-                (tamanho > 2 ? tamanhosListas[2] : 0)
+                (tamanhosListas.length > 0 ? tamanhosListas[0] : 0),
+                (tamanhosListas.length > 1 ? tamanhosListas[1] : 0),
+                (tamanhosListas.length > 2 ? tamanhosListas[2] : 0)
             };
         }
 
@@ -307,11 +312,14 @@ public class TabelaHash {
             bw.write("metodo,modo,tamanhoTabela,tamanhoDataset,tempoInsercaoNs,tempoBuscaNs,colisoes,lista1,lista2,lista3,gapMin,gapMax,gapMedio\n");
         }
         public void linha(String metodo, String modo, int tam, long dados,
-                          long tIns, long tBusca, long colisoes,
-                          Integer l1, Integer l2, Integer l3, double gMin, double gMax, double gMed) throws IOException {
-            bw.write(String.format("%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.4f\n",
-                    metodo, modo, tam, dados, tIns, tBusca,
-                    colisoes, l1, l2, l3, gMin, gMax, gMed));
+                              long tIns, long tBusca, long colisoes,
+                              Integer l1, Integer l2, Integer l3, double gMin, double gMax, double gMed) throws IOException {
+            // CORREÇÃO: Usando Locale.US para garantir que o separador decimal seja '.' e não ','
+            String linhaFormatada = String.format(java.util.Locale.US,
+                "%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.4f\n",
+                metodo, modo, tam, dados, tIns, tBusca,
+                colisoes, l1, l2, l3, gMin, gMax, gMed);
+            bw.write(linhaFormatada);
         }
         public void fechar() throws IOException { bw.close(); }
     }
@@ -319,8 +327,11 @@ public class TabelaHash {
     // Execução principal
     public static void main(String[] args) throws Exception {
 
-        // Tamanhos da tabela: Primos próximos de 1k, 10k, 100k
-        int[] tamanhos = {1009, 10007, 100003}; 
+        // CORREÇÃO: Tamanhos da tabela ajustados para serem MAIORES que os datasets,
+        // o que é essencial para o funcionamento do Endereçamento Aberto.
+        // Foram escolhidos números primos para melhorar a distribuição.
+        int[] tamanhos = {150001, 1500007, 15000017}; 
+        
         // Tamanhos dos conjuntos de dados
         long[] dados = {100_000L, 1_000_000L, 10_000_000L};
         long seed = 123456789L;
@@ -347,13 +358,23 @@ public class TabelaHash {
 
         // Funções Hash escolhidas:
         FuncaoHash hashMult = (k, M) -> HashUtils.hashMultiplicativo(k, M);
-        FuncaoHash hashSec = (k, M) -> 1 + (k % (M - 1)); // Hash secundário para Hash Duplo (garante resultado não zero)
+        // CORREÇÃO: Usando Math.abs(k) para garantir que o resultado do módulo seja sempre positivo.
+        FuncaoHash hashSec = (k, M) -> 1 + (Math.abs(k) % (M - 1)); // Hash secundário para Hash Duplo
 
         System.out.println("\n*** INICIANDO TESTES DE DESEMPENHO ***");
         System.out.println("Resultados detalhados serão salvos em: " + resultado);
 
         for (int M : tamanhos) {
             for (long qtd : dados) {
+                // CORREÇÃO: Pula combinações onde a quantidade de dados é maior que o tamanho da tabela,
+                // pois isso faria o Encadeamento ficar muito lento e quebraria o Endereçamento Aberto.
+                if (qtd > M) {
+                    System.out.println("\n=======================================================");
+                    System.out.println("AVISO: Pulando teste para Tabela=" + M + " | Registros=" + qtd + " (dataset maior que a tabela)");
+                    System.out.println("=======================================================");
+                    continue;
+                }
+
                 String dataset = pasta + "/dados_" + qtd + ".txt";
                 System.out.println("\n=======================================================");
                 System.out.println("Teste | Tabela=" + M + " | Registros=" + qtd);
@@ -387,7 +408,7 @@ public class TabelaHash {
                 Integer[] topListas = enc.getTop3Listas();
                 
                 csv.linha("encadeamento", "ordenado_multiplicativo", M, qtd, tempoIns, tempoBusca,
-                          enc.getColisoes(), topListas[0], topListas[1], topListas[2], gaps[0], gaps[1], gaps[2]);
+                            enc.getColisoes(), topListas[0], topListas[1], topListas[2], gaps[0], gaps[1], gaps[2]);
 
                 // --- 2. Rehashing Duplo ---
                 System.out.println("-> Método 2: Rehashing Duplo (Multiplicativo + Secundário)");
@@ -416,7 +437,7 @@ public class TabelaHash {
 
                 double[] gapsDH = tdh.calcularGaps();
                 csv.linha("enderecamento_aberto", "duplo", M, qtd, tempoIns, tempoBusca,
-                          tdh.getColisoes(), 1, 0, 0, gapsDH[0], gapsDH[1], gapsDH[2]);
+                            tdh.getColisoes(), 0, 0, 0, gapsDH[0], gapsDH[1], gapsDH[2]);
 
                 // --- 3. Probing Quadrático ---
                 System.out.println("-> Método 3: Probing Quadrático (Multiplicativo)");
@@ -445,7 +466,7 @@ public class TabelaHash {
 
                 double[] gapsQ = tq.calcularGaps();
                 csv.linha("enderecamento_aberto", "quadratico", M, qtd, tempoIns, tempoBusca,
-                          tq.getColisoes(), 1, 0, 0, gapsQ[0], gapsQ[1], gapsQ[2]);
+                            tq.getColisoes(), 0, 0, 0, gapsQ[0], gapsQ[1], gapsQ[2]);
             }
         }
 
